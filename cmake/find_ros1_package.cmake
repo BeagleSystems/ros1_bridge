@@ -23,6 +23,7 @@ macro(find_ros1_package name)
   find_package(PkgConfig REQUIRED)
   # the error message of pkg_check_modules for not found required modules
   # doesn't include the module name which is not helpful
+
   pkg_check_modules(ros1_${name} ${name})
   if(NOT ros1_${name}_FOUND)
     if(_ARG_REQUIRED)
@@ -32,6 +33,7 @@ macro(find_ros1_package name)
     endif()
   else()
     set(_libraries "${ros1_${name}_LIBRARIES}")
+    list(TRANSFORM _libraries REPLACE "_opencv" "opencv")
     # Prior to catkin 0.7.7, dependent libraries in the pkg-config file were always generated
     # in the form "-l:/absolute/path/to/library".  Because of the leading "-l", this made
     # them show up in ${ros1_${name}_LIBRARIES}.  catkin 0.7.7 and later has changed this to
