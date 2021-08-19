@@ -85,6 +85,7 @@ def generate_cpp(output_path, template_dir):
     unique_package_names = set(data['ros2_package_names_msg'] + data['ros2_package_names_srv'])
     # skip builtin_interfaces since there is a custom implementation
     unique_package_names -= {'builtin_interfaces'}
+    #unique_package_names = unique_package_names.intersection({'std_msgs', 'sensor_msgs', 'payload_interfaces', 'beagle_interfaces'})
     data['ros2_package_names'] = list(unique_package_names)
 
     template_file = os.path.join(template_dir, 'get_factory.cpp.em')
@@ -477,12 +478,15 @@ class ServiceMappingRule(MappingRule):
 def determine_package_pairs(ros1_msgs, ros2_msgs, mapping_rules):
     pairs = []
     # determine package names considered equal between ROS 1 and ROS 2
-    ros1_suffix = '_msgs'
+    ros1_suffixes = ['_msgs', '_interfaces']
     ros2_suffixes = ['_msgs', '_interfaces']
     ros1_package_names = {m.package_name for m in ros1_msgs}
     ros2_package_names = {m.package_name for m in ros2_msgs}
     for ros1_package_name in ros1_package_names:
-        if not ros1_package_name.endswith(ros1_suffix):
+        for ros1_suffix in ros1_suffixes:
+            if ros1_package_name.endswith(ros1_suffix):
+                break
+        else:
             continue
         ros1_package_basename = ros1_package_name[:-len(ros1_suffix)]
 
@@ -912,6 +916,9 @@ class Mapping:
             msg_name = ros2_member.type.name
             if pkg_name != 'builtin_interfaces':
                 self.depends_on_ros2_messages.add(Message(pkg_name, msg_name))
+
+    def __repr__(self):
+        return '<Mapping 1: {}, 2: {}>'.format(self.ros1_msg, self.ros2_msg)
 
 
 def camel_case_to_lower_case_underscore(value):

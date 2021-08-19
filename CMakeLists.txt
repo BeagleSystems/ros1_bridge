@@ -16,6 +16,8 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rmw_implementation_cmake REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 # find ROS 1 packages
 set(cmake_extras_files cmake/find_ros1_package.cmake cmake/find_ros1_interface_packages.cmake)
@@ -40,6 +42,8 @@ if(NOT ros1_roscpp_FOUND)
 endif()
 
 find_ros1_package(std_msgs REQUIRED)
+find_ros1_package(sensor_msgs REQUIRED)
+find_ros1_package(geometry_msgs REQUIRED)
 
 # find ROS 1 packages with messages / services
 include(cmake/find_ros1_interface_packages.cmake)
@@ -71,7 +75,7 @@ if(BUILD_TESTING)
       unset(diagnostic_msgs_DIR CACHE)
       message(FATAL_ERROR "Failed to find ROS 2 package 'diagnostic_msgs'")
     endif()
-    set(TEST_ROS1_BRIDGE TRUE)
+    # set(TEST_ROS1_BRIDGE TRUE)
   endif()
 endif()
 
@@ -95,22 +99,24 @@ ament_index_get_resources(ros2_interface_packages "rosidl_interfaces")
 set(actionlib_msgs_DEPRECATED_QUIET TRUE)
 foreach(package_name ${ros2_interface_packages})
   find_package(${package_name} QUIET REQUIRED)
-  message(STATUS "Found ${package_name}: ${${package_name}_VERSION} (${${package_name}_DIR})")
-  if(NOT "${package_name}" STREQUAL "builtin_interfaces")
-    list(APPEND generated_files "${generated_path}/${package_name}_factories.cpp")
-    list(APPEND generated_files "${generated_path}/${package_name}_factories.hpp")
-    foreach(interface_file ${${package_name}_IDL_FILES})
-      file(TO_CMAKE_PATH "${interface_file}" interface_name)
-      get_filename_component(interface_basename "${interface_name}" NAME_WE)
-      # skipping actions and request and response messages of services
-      if(NOT "${interface_name}" MATCHES "^(msg|srv)/" OR "${interface_basename}" MATCHES "_(Request|Response)$")
-        continue()
-      endif()
-      string(REPLACE "/" "__" interface_name "${interface_name}")
-      get_filename_component(interface_name "${interface_name}" NAME_WE)
-      list(APPEND generated_files "${generated_path}/${package_name}__${interface_name}__factories.cpp")
-    endforeach()
-  endif()
+  #if(package_name MATCHES "^std_msgs|^sensor_msgs|^payload_interfaces|^beagle_interfaces")
+    message(STATUS "Found ${package_name}: ${${package_name}_VERSION} (${${package_name}_DIR})")
+    if(NOT "${package_name}" STREQUAL "builtin_interfaces")
+      list(APPEND generated_files "${generated_path}/${package_name}_factories.cpp")
+      list(APPEND generated_files "${generated_path}/${package_name}_factories.hpp")
+      foreach(interface_file ${${package_name}_IDL_FILES})
+        file(TO_CMAKE_PATH "${interface_file}" interface_name)
+        get_filename_component(interface_basename "${interface_name}" NAME_WE)
+        # skipping actions and request and response messages of services
+        if(NOT "${interface_name}" MATCHES "^(msg|srv)/" OR "${interface_basename}" MATCHES "_(Request|Response)$")
+          continue()
+        endif()
+        string(REPLACE "/" "__" interface_name "${interface_name}")
+        get_filename_component(interface_name "${interface_name}" NAME_WE)
+        list(APPEND generated_files "${generated_path}/${package_name}__${interface_name}__factories.cpp")
+      endforeach()
+    endif()
+  #endif()
 endforeach()
 
 set(target_dependencies
@@ -150,7 +156,9 @@ function(custom_executable target)
   if(ARG_ROS1_DEPENDENCIES)
     ament_target_dependencies(${target}
       "ros1_roscpp"
-      "ros1_std_msgs")
+      "ros1_std_msgs"
+      "ros1_sensor_msgs"
+      "ros1_geometry_msgs")
   endif()
   if(ARG_DEPENDENCIES)
     add_dependencies(${target} ${ARG_DEPENDENCIES})
@@ -181,32 +189,20 @@ ament_target_dependencies(${PROJECT_NAME}
   ${ros2_interface_packages}
   "rclcpp"
   "ros1_roscpp"
-  "ros1_std_msgs")
+  "ros1_std_msgs"
+  "ros1_sensor_msgs"
+  "ros1_geometry_msgs")
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 
-custom_executable(static_bridge
-  "src/static_bridge.cpp"
-  ROS1_DEPENDENCIES
-  TARGET_DEPENDENCIES ${ros2_interface_packages})
-target_link_libraries(static_bridge
-  ${PROJECT_NAME})
-
 custom_executable(parameter_bridge
   "src/parameter_bridge.cpp"
   ROS1_DEPENDENCIES
   TARGET_DEPENDENCIES ${message_packages})
 target_link_libraries(parameter_bridge
-  ${PROJECT_NAME})
-
-custom_executable(dynamic_bridge
-  "src/dynamic_bridge.cpp"
-  ROS1_DEPENDENCIES
-  TARGET_DEPENDENCIES ${ros2_interface_packages})
-target_link_libraries(dynamic_bridge
   ${PROJECT_NAME})
 
 if(TEST_ROS1_BRIDGE)

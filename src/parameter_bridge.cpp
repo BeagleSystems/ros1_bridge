@@ -102,6 +102,7 @@ int main(int argc, char * argv[])
     fprintf(
       stderr,
       "The parameter '%s' either doesn't exist or isn't an array\n", topics_parameter_name);
+    return 1;
   }
 
   // ROS 1 Services in ROS 2
